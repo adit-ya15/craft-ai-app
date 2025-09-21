@@ -159,7 +159,7 @@
                             <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 disabled:opacity-50">Create Post</button>
                             <div class="output-display mt-4 text-left">
                                 <div class="bg-gray-100 p-4 rounded-lg min-h-[120px] max-h-48 overflow-y-auto text-sm text-gray-700 relative">
-                                    <button type="button" class="copy-btn absolute top-2 right-2 text-gray-400 hover:text-orange-500" aria-label="Copy">
+                                    <button type="button"="copy-btn absolute top-2 right-2 text-gray-400 hover:text-orange-500" aria-label="Copy">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
                                     </button>
                                     <pre class="whitespace-pre-wrap font-sans" id="social-output">Your engaging social media post will appear here...</pre>
@@ -318,6 +318,82 @@
              { id: 'sample3', name: 'Pashmina Shawl with Sozni Embroidery', price: '8000', originalPrice: '10500', category: 'Apparel & Textiles', rating: 4.9, reviewCount: 204, description: 'An authentic, handwoven Pashmina shawl from Kashmir, featuring delicate Sozni needlework. A luxurious and timeless piece.', image: 'https://m.media-amazon.com/images/I/41+LRdUxrCL._UY1100_.jpg', ownerId: 'sampleOwner' },
              { id: 'sample4', name: 'Terracotta Horse Figurine', price: '950', originalPrice: '1235', category: 'Sculptures & Figurines', rating: 4.4, reviewCount: 67, description: 'A rustic Terracotta horse from Panchmura, West Bengal, symbolizing power and grace. Ideal for traditional and modern interiors. Crafted using techniques passed down through generations of skilled potters.', image: 'https://m.media-amazon.com/images/I/713Etk0OVdL._UF894,1000_QL80_.jpg', ownerId: 'sampleOwner' }
         ];
+
+        // --- AI CONTENT GENERATION ---
+        async function generateContent(form, systemInstruction, userQuery, isHtml = false, imageData = null) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const outputElement = form.querySelector('[id$="-output"]');
+            
+            const originalText = submitBtn.dataset.originalText || submitBtn.textContent;
+            submitBtn.textContent = 'Generating...';
+            submitBtn.disabled = true;
+            
+            try {
+                const requestBody = {
+                    contents: [{
+                        parts: [
+                            { text: systemInstruction + "\n\nUser request: " + userQuery }
+                        ]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 1024,
+                    },
+                    safetySettings: [
+                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+                    ]
+                };
+
+                // Add image if provided
+                if (imageData) {
+                    requestBody.contents[0].parts.unshift({
+                        inlineData: {
+                            mimeType: imageData.mimeType,
+                            data: imageData.data
+                        }
+                    });
+                }
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    const generatedText = data.candidates[0].content.parts[0].text;
+                    
+                    if (isHtml) {
+                        outputElement.innerHTML = generatedText.replace(/\n/g, '<br>');
+                    } else {
+                        outputElement.textContent = generatedText;
+                    }
+                    
+                    showToast('Content generated successfully!');
+                } else {
+                    throw new Error('No content generated');
+                }
+                
+            } catch (error) {
+                console.error('Error generating content:', error);
+                outputElement.textContent = 'Sorry, there was an error generating content. Please try again.';
+                showToast('Error generating content. Please check your internet connection and try again.');
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        }
 
         // --- UI ELEMENTS ---
         const pages = {
@@ -554,7 +630,7 @@
                     } else {
                         userId = null;
                         window.liveProducts = [];
-                        renderProducts([]); 
+                        renderProducts([]);
                         signInAnonymously(auth);
                     }
                 });
@@ -597,7 +673,7 @@
                 let userQuery = `Generate a product description in ${language} for: "${features}"`;
                 if (uploadedImageDataForAI && !features) { userQuery = `Generate a product description in ${language} for the product in this image.`; }
                 else if (uploadedImageDataForAI && features) { userQuery = `Using the product in this image as a visual reference, generate a product description in ${language} for: "${features}"`; }
-                const systemInstruction = "You are an expert e-commerce copywriter for an Indian marketplace...";
+                const systemInstruction = "You are an expert e-commerce copywriter specializing in traditional Indian handicrafts. Create compelling, authentic product descriptions that highlight craftsmanship, cultural heritage, and quality. Focus on storytelling that connects the buyer to the artisan's work.";
                 form.querySelector('button[type="submit"]').dataset.originalText = "Generate Description";
                 generateContent(form, systemInstruction, userQuery, true, uploadedImageDataForAI);
             });
@@ -611,7 +687,7 @@
                 let userQuery = `Create a social media post in ${language} about "${product}".`;
                 if (uploadedImageDataForAI && !product) { userQuery = `Create a social media post in ${language} for the product in this image.`; }
                 else if (uploadedImageDataForAI && product) { userQuery = `Using the product in this image as a visual reference, create a social media post in ${language} about "${product}".`; }
-                const systemInstruction = `You are a savvy social media marketer...`;
+                const systemInstruction = `You are a savvy social media marketer for handcrafted products. Create engaging posts with relevant hashtags, emojis, and compelling copy that showcases the beauty and tradition behind artisan products. Make it Instagram-ready with proper formatting.`;
                 form.querySelector('button[type="submit"]').dataset.originalText = "Create Post";
                 generateContent(form, systemInstruction, userQuery, false, uploadedImageDataForAI);
             });
@@ -625,7 +701,7 @@
                 let userQuery = `Write a story in ${language} about an artisan whose special craft is: "${special}".`;
                 if (uploadedImageDataForAI && !special) { userQuery = `Write a brand story in ${language} inspired by the artisan's work in this image.`; }
                 else if (uploadedImageDataForAI && special) { userQuery = `Using the work in this image as a visual reference, write a story in ${language} about an artisan whose special craft is: "${special}".`; }
-                const systemInstruction = `You are a gifted storyteller...`;
+                const systemInstruction = `You are a gifted storyteller who specializes in crafting authentic narratives about traditional artisans and their heritage crafts. Create compelling brand stories that honor cultural traditions while appealing to modern customers. Focus on the human element, family traditions, and the passion behind the craft.`;
                 form.querySelector('button[type="submit"]').dataset.originalText = "Write My Story";
                 generateContent(form, systemInstruction, userQuery, true, uploadedImageDataForAI);
             });
@@ -639,7 +715,7 @@
                 let userQuery = `Write marketing copy in ${language} for a product: "${product}".`;
                 if (uploadedImageDataForAI && !product) { userQuery = `Write marketing copy in ${language} for the product in this image.`; }
                 else if (uploadedImageDataForAI && product) { userQuery = `Using the product in this image as a visual reference, write marketing copy in ${language} for: "${product}".`; }
-                const systemInstruction = `You are a marketing copywriter...`;
+                const systemInstruction = `You are a marketing copywriter specializing in artisan products. Create persuasive, compelling marketing copy that emphasizes quality, authenticity, and the unique value proposition of handcrafted items. Use emotional appeal while highlighting practical benefits.`;
                 form.querySelector('button[type="submit"]').dataset.originalText = "Generate Marketing Copy";
                 generateContent(form, systemInstruction, userQuery, true, uploadedImageDataForAI);
             });
