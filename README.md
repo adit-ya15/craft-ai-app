@@ -1,7 +1,7 @@
 # CraftAI: AI-Powered Marketing Assistant for Artisans
 CraftAI is a web-based platform designed to empower local and traditional artisans by providing them with a suite of generative AI tools to enhance their digital presence. It bridges the gap between traditional craftsmanship and the modern digital marketplace, offering an end-to-end solution from content creation to a live, community-driven marketplace.
 
-### Live Demo: [https://craft-ai-app.netlify.app/]
+### Live Demo: https://craft-ai-app.netlify.app/
 
 ## The Problem
 Indian artisans, rich in cultural heritage and traditional skills, often face significant challenges in the digital world. A lack of digital marketing skills, limited resources, and the difficulty of writing compelling stories about their craft severely restrict their market reach and profitability.
