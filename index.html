@@ -385,8 +385,10 @@
                     console.error("AI response was blocked or empty:", data); 
 
     // Check if it was a safety block
-    if (data.candidates && data.candidates[0].finishReason === 'SAFETY') {
-        throw new Error('Content was blocked by safety filters.');
+   console.error("AI RESPONSE WAS BLOCKED OR EMPTY. Candidate details:", data.candidates[0]); 
+
+    if (data.candidates && data.candidates[0].finishReason && data.candidates[0].finishReason !== 'STOP') {
+        throw new Error(`Content generation failed. Reason: ${data.candidates[0].finishReason}`);
     } else {
         throw new Error('No content generated (response was empty).');
     }
